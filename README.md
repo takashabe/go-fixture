@@ -2,11 +2,11 @@
 
 ## design:
 
-* fixture write in .yml
+* fixture write in .yml or .sql
 * setup fixture by choose .yml and target table mapping struct
   * e.g. `loadFixture("path/to/hoge.yml", &Hoge{})`
 
-### fixture file format
+### .yml fixture file format
 
 ```
 - table: foo
@@ -17,4 +17,10 @@
     - id: 2
       first_name: piyo
       last_name: fuga
+```
+
+### .sql fixture file format
+
+```
+insert into person(id, name) values (1, 'foo')
 ```
