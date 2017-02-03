@@ -7,7 +7,14 @@ func TestTrimComment(t *testing.T) {
 		input  string
 		expect string
 	}{
-		{"", ""},
+		{
+			"-- comment\na; -- comment\nb;# comment",
+			"a; b;",
+		},
+		{
+			"/* comment */c; \nd;/*\ne;\n*/f;-- comment\n",
+			"c; d;f;",
+		},
 	}
 	for i, c := range cases {
 		m := &MySQLDriver{}
