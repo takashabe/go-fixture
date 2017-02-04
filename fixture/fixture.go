@@ -2,15 +2,19 @@ package fixture
 
 import (
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"strings"
 
+	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 var (
 	ErrFailRegisterDriver = errors.New("failed to register driver")
 	ErrFailReadFile       = errors.New("failed to read file")
+	ErrInvalidFixture     = errors.New("invalid fixture file format")
 
 	// db driver. register by any driver files
 	drivers = make(map[string]Driver)
@@ -18,6 +22,8 @@ var (
 
 type Driver interface {
 	TrimComment(sql string) string
+	EscapeKeyword(keyword string) string
+	EscapeValue(value string) string
 }
 
 // sample:
@@ -27,6 +33,11 @@ type Driver interface {
 type Fixture struct {
 	db     *sql.DB
 	driver Driver
+}
+
+type FixtureModel struct {
+	Table  string              `yaml:"table"`
+	Record []map[string]string `yaml:"record"`
 }
 
 func Register(name string, driver Driver) error {
@@ -42,17 +53,17 @@ func NewFixture(db *sql.DB, driverName string) *Fixture {
 }
 
 // load .yml script
-func (f *Fixture) Load(path string, model interface{}) error {
-	return nil
-}
-
-// load .sql script
-func (f *Fixture) LoadSQL(path string) error {
+func (f *Fixture) Load(path string) error {
 	data, err := getFileData(path)
 	if err != nil {
 		return err
 	}
-	stmts, err := f.createSQLs(string(data))
+	model := FixtureModel{}
+	err = yaml.Unmarshal(data, &model)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidFixture, ": err %v", err)
+	}
+	stmts, err := f.createInsertSQLs(model)
 	if err != nil {
 		return err
 	}
@@ -67,7 +78,67 @@ func (f *Fixture) LoadSQL(path string) error {
 	return nil
 }
 
-func (f *Fixture) createSQLs(fileData string) ([]*sql.Stmt, error) {
+// load .sql script
+func (f *Fixture) LoadSQL(path string) error {
+	data, err := getFileData(path)
+	if err != nil {
+		return err
+	}
+	stmts, err := f.chooseSQLs(string(data))
+	if err != nil {
+		return err
+	}
+	for _, stmt := range stmts {
+		_, err = stmt.Exec()
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+	}
+
+	return nil
+}
+
+// create sqls from .yml
+func (f *Fixture) createInsertSQLs(model FixtureModel) ([]*sql.Stmt, error) {
+	if model.Table == "" || len(model.Record) == 0 {
+		return nil, ErrInvalidFixture
+	}
+
+	sqls := []*sql.Stmt{}
+	for _, record := range model.Record {
+		sql, _ := f.createInsertSQL(model.Table, record)
+		pp.Println(sql)
+		stmt, err := f.db.Prepare(sql)
+		if err != nil {
+			return nil, err
+		}
+		sqls = append(sqls, stmt)
+	}
+
+	return sqls, nil
+}
+
+func (f *Fixture) createInsertSQL(table string, record map[string]string) (string, error) {
+	var (
+		columns []string
+		values  []string
+	)
+	for c, v := range record {
+		columns = append(columns, f.driver.EscapeKeyword(c))
+		values = append(values, f.driver.EscapeValue(v))
+	}
+	sql := fmt.Sprintf(
+		"insert into %s (%s) values (%s)",
+		f.driver.EscapeKeyword(table),
+		strings.Join(columns, ", "),
+		strings.Join(values, ", "),
+	)
+	return sql, nil
+}
+
+// choose sqls from .sql
+func (f *Fixture) chooseSQLs(fileData string) ([]*sql.Stmt, error) {
 	sqls := []*sql.Stmt{}
 	sql := strings.Trim(fileData, "\n")
 	sql = f.driver.TrimComment(sql)
