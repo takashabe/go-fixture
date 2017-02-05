@@ -124,41 +124,59 @@ func TestLoadSQL(t *testing.T) {
 	defer db.Close()
 
 	cases := []struct {
-		input     string
-		expectErr error
+		input          string
+		expectErr      error
+		expectTable    string
+		expectExistIDs []int
 	}{
-		{"testdata/create.sql", nil},
-		{"testdata/test.sql", nil},
-		{"testdata/error.sql", &mysql.MySQLError{}},
+		{"testdata/create.sql", nil, "", nil},
+		{"testdata/test.sql", nil, "person", []int{1}},
+		{"testdata/error.sql", &mysql.MySQLError{}, "", nil},
 	}
 	for i, c := range cases {
-		tx, _ := db.Begin()
 		f := NewFixture(db, "mysql")
 		err := f.LoadSQL(c.input)
 		if err != nil && reflect.TypeOf(err) != reflect.TypeOf(c.expectErr) {
 			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
 		}
-		tx.Rollback()
+		if c.expectExistIDs != nil {
+			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
+		}
 	}
 }
 
-// TODO compare database values
 func TestLoad(t *testing.T) {
 	db := h.TestDB(t)
 	defer db.Close()
 
 	cases := []struct {
-		input     string
-		expectErr error
+		input          string
+		expectErr      error
+		expectTable    string
+		expectExistIDs []int
 	}{
-		{"testdata/test.yml", nil},
-		{"testdata/error.yml", ErrInvalidFixture},
+		{"testdata/test.yml", nil, "person", []int{1, 2}},
+		{"testdata/error.yml", ErrInvalidFixture, "", nil},
 	}
 	for i, c := range cases {
 		f := NewFixture(db, "mysql")
 		err := f.Load(c.input)
 		if err != nil && reflect.TypeOf(err) != reflect.TypeOf(c.expectErr) {
 			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
+		}
+		if c.expectExistIDs != nil {
+			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
+		}
+	}
+}
+
+func checkSelectIDs(t *testing.T, db *sql.DB, ids []int, table string) {
+	for _, id := range ids {
+		row := db.QueryRow(fmt.Sprintf("select id from %s where id=%d", table, id))
+		var a int
+		err := row.Scan(&a)
+		if err != nil {
+			t.Errorf("id%d: want no error, got %v", id, err)
 		}
 	}
 }

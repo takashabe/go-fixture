@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -108,7 +107,6 @@ func (f *Fixture) createInsertSQLs(model FixtureModel) ([]*sql.Stmt, error) {
 	sqls := []*sql.Stmt{}
 	for _, record := range model.Record {
 		sql, _ := f.createInsertSQL(model.Table, record)
-		pp.Println(sql)
 		stmt, err := f.db.Prepare(sql)
 		if err != nil {
 			return nil, err
@@ -160,6 +158,5 @@ func getFileData(path string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(ErrFailReadFile, err.Error())
 	}
-
 	return data, nil
 }
