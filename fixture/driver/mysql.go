@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -8,6 +9,14 @@ import (
 )
 
 type MySQLDriver struct {
+}
+
+func (d *MySQLDriver) EscapeKeyword(keyword string) string {
+	return fmt.Sprintf("`%s`", keyword)
+}
+
+func (d *MySQLDriver) EscapeValue(value string) string {
+	return fmt.Sprintf("'%s'", value)
 }
 
 func (m *MySQLDriver) TrimComment(sql string) string {
