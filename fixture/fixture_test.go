@@ -15,9 +15,12 @@ type Helper struct{}
 
 type TestDriver struct{}
 
-var h = Helper{}
+var (
+	ErrTestMySQL = errors.New("for test mysql error")
 
-var testTables = []string{"person", "book"}
+	h          = Helper{}
+	testTables = []string{"person", "book"}
+)
 
 // TODO changeable DB by env
 func (h *Helper) TestDB(t *testing.T) *sql.DB {
@@ -131,13 +134,20 @@ func TestLoadSQL(t *testing.T) {
 	}{
 		{"testdata/create.sql", nil, "", nil},
 		{"testdata/test.sql", nil, "person", []int{1}},
-		{"testdata/error.sql", &mysql.MySQLError{}, "", nil},
+		{"testdata/error.sql", ErrTestMySQL, "", nil},
+		{"testdata/none", ErrFailReadFile, "", nil},
 	}
 	for i, c := range cases {
 		f := NewFixture(db, "mysql")
 		err := f.LoadSQL(c.input)
-		if err != nil && reflect.TypeOf(err) != reflect.TypeOf(c.expectErr) {
-			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
+		if err != nil {
+			if c.expectErr == ErrTestMySQL {
+				if _, ok := err.(*mysql.MySQLError); !ok {
+					t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+				}
+			} else if errors.Cause(err) != errors.Cause(c.expectErr) {
+				t.Errorf("#%d: want %v, got %v", i, errors.Cause(c.expectErr), errors.Cause(err))
+			}
 		}
 		if c.expectExistIDs != nil {
 			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
@@ -157,12 +167,19 @@ func TestLoad(t *testing.T) {
 	}{
 		{"testdata/test.yml", nil, "person", []int{1, 2}},
 		{"testdata/error.yml", ErrInvalidFixture, "", nil},
+		{"testdata/none", ErrFailReadFile, "", nil},
 	}
 	for i, c := range cases {
 		f := NewFixture(db, "mysql")
 		err := f.Load(c.input)
-		if err != nil && reflect.TypeOf(err) != reflect.TypeOf(c.expectErr) {
-			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
+		if err != nil {
+			if c.expectErr == ErrTestMySQL {
+				if _, ok := err.(*mysql.MySQLError); !ok {
+					t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+				}
+			} else if errors.Cause(err) != errors.Cause(c.expectErr) {
+				t.Errorf("#%d: want %v, got %v", i, errors.Cause(c.expectErr), errors.Cause(err))
+			}
 		}
 		if c.expectExistIDs != nil {
 			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
