@@ -1,0 +1,6 @@
+table: person
+record:
+  - id: 2
+    first_name: foo
+    last_name: bar
+    none_column: piyo

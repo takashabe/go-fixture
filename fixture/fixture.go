@@ -62,17 +62,27 @@ func (f *Fixture) Load(path string) error {
 	if err != nil {
 		return errors.Wrapf(ErrInvalidFixture, ": err %v", err)
 	}
-	stmts, err := f.createInsertSQLs(model)
+
+	tx, err := f.db.Begin()
 	if err != nil {
 		return err
 	}
-	for _, stmt := range stmts {
-		_, err = stmt.Exec()
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
+	err = f.clearTable(tx, model.Table)
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
+
+	sqls, err := f.createInsertSQLs(tx, model)
+	if err != nil {
+		return err
+	}
+	err = f.execSQLs(tx, sqls)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
 
 	return nil
 }
@@ -83,37 +93,59 @@ func (f *Fixture) LoadSQL(path string) error {
 	if err != nil {
 		return err
 	}
-	stmts, err := f.chooseSQLs(string(data))
+
+	tx, err := f.db.Begin()
 	if err != nil {
 		return err
 	}
-	for _, stmt := range stmts {
-		_, err = stmt.Exec()
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
+	sqls, err := f.chooseSQLs(tx, string(data))
+	if err != nil {
+		return err
 	}
+	err = f.execSQLs(tx, sqls)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
 
 	return nil
 }
 
+func (f *Fixture) clearTable(tx *sql.Tx, tableName string) error {
+	_, err := tx.Exec(fmt.Sprintf("delete from %s", f.driver.EscapeKeyword(tableName)))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *Fixture) execSQLs(tx *sql.Tx, sqls []string) error {
+	for _, sql := range sqls {
+		stmt, err := tx.Prepare(sql)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // create sqls from .yml
-func (f *Fixture) createInsertSQLs(model FixtureModel) ([]*sql.Stmt, error) {
+func (f *Fixture) createInsertSQLs(tx *sql.Tx, model FixtureModel) ([]string, error) {
 	if model.Table == "" || len(model.Record) == 0 {
 		return nil, ErrInvalidFixture
 	}
 
-	sqls := []*sql.Stmt{}
+	sqls := []string{}
 	for _, record := range model.Record {
 		sql, _ := f.createInsertSQL(model.Table, record)
-		stmt, err := f.db.Prepare(sql)
-		if err != nil {
-			return nil, err
-		}
-		sqls = append(sqls, stmt)
+		sqls = append(sqls, sql)
 	}
-
 	return sqls, nil
 }
 
@@ -136,19 +168,15 @@ func (f *Fixture) createInsertSQL(table string, record map[string]string) (strin
 }
 
 // choose sqls from .sql
-func (f *Fixture) chooseSQLs(fileData string) ([]*sql.Stmt, error) {
-	sqls := []*sql.Stmt{}
+func (f *Fixture) chooseSQLs(tx *sql.Tx, fileData string) ([]string, error) {
+	sqls := []string{}
 	sql := strings.Trim(fileData, "\n")
 	sql = f.driver.TrimComment(sql)
 	for _, line := range strings.Split(sql, ";") {
 		if line == "" {
 			continue
 		}
-		stmt, err := f.db.Prepare(line)
-		if err != nil {
-			return nil, err
-		}
-		sqls = append(sqls, stmt)
+		sqls = append(sqls, line)
 	}
 	return sqls, nil
 }

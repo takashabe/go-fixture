@@ -43,15 +43,15 @@ func (h *Helper) ClearTable(t *testing.T, db *sql.DB, tableName string) {
 	}
 }
 
-func (hd *TestDriver) TrimComment(sql string) string {
+func (d *TestDriver) TrimComment(sql string) string {
 	return sql
 }
 
-func (hd *TestDriver) EscapeKeyword(keyword string) string {
+func (d *TestDriver) EscapeKeyword(keyword string) string {
 	return fmt.Sprintf("`%s`", keyword)
 }
 
-func (hd *TestDriver) EscapeValue(value string) string {
+func (d *TestDriver) EscapeValue(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
 
@@ -95,33 +95,170 @@ record:
 	}
 }
 
-func TestCreateSQLs(t *testing.T) {
+func TestChooseSQLs(t *testing.T) {
 	db := h.TestDB(t)
 	defer db.Close()
 
 	cases := []struct {
-		input     string
-		expectErr error
+		input      string
+		expectSQLs []string
 	}{
 		{
-			"insert into person (id, first_name, last_name) values (1, 'foo', 'bar');",
-			nil,
+			"insert into person (id, first_name, last_name) values (1, 'foo', 'bar');desc person;",
+			[]string{
+				"insert into person (id, first_name, last_name) values (1, 'foo', 'bar');",
+				"desc person;",
+			},
 		},
 		{
 			"a; b\nc;",
-			&mysql.MySQLError{},
+			nil,
 		},
 	}
 	for i, c := range cases {
 		f := NewFixture(db, "mysql")
-		_, err := f.chooseSQLs(c.input)
-		if err != nil && reflect.TypeOf(err) != reflect.TypeOf(c.expectErr) {
-			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
+		tx, err := db.Begin()
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
+		sqls, err := f.chooseSQLs(tx, c.input)
+		if _, ok := err.(*mysql.MySQLError); err != nil && !ok {
+			t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+		}
+		if reflect.DeepEqual(sqls, c.expectSQLs) {
+			t.Errorf("#%d: want %v, got %v", i, c.expectSQLs, err)
 		}
 	}
 }
 
-// TODO compare database values
+func TestCreateInsertSQLs(t *testing.T) {
+	db := h.TestDB(t)
+	defer db.Close()
+
+	cases := []struct {
+		input      FixtureModel
+		expectSQLs []string
+		expectErr  error
+	}{
+		{
+			FixtureModel{
+				Table: "person",
+				Record: []map[string]string{
+					{"id": "1", "first_name": "foo", "last_name": "bar"},
+					{"id": "2", "first_name": "fuga", "last_name": "piyo"},
+				}},
+			[]string{
+				"insert into `person` values ('1', 'foo', 'bar')",
+				"insert into `person` values ('2', 'fuga', 'piyo')",
+			},
+			nil,
+		},
+		{
+			FixtureModel{},
+			[]string{},
+			ErrInvalidFixture,
+		},
+	}
+	for i, c := range cases {
+		f := NewFixture(db, "mysql")
+		tx, err := db.Begin()
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
+		sqls, err := f.createInsertSQLs(tx, c.input)
+		if err != c.expectErr {
+			t.Errorf("#%d: want %v, got %v", i, c.expectErr, err)
+		}
+		if reflect.DeepEqual(sqls, c.expectSQLs) {
+			t.Errorf("#%d: want %v, got %v", i, c.expectSQLs, sqls)
+		}
+	}
+}
+
+func TestClearTable(t *testing.T) {
+	db := h.TestDB(t)
+	defer db.Close()
+
+	cases := []struct {
+		beforeSQL        string
+		input            string
+		expectNotExistID int
+	}{
+		{
+			"insert into person values (1, 'foo', 'bar')",
+			"person",
+			1,
+		},
+		{
+			"insert into person values (1, 'foo', 'bar')",
+			"none_table",
+			0,
+		},
+	}
+	for i, c := range cases {
+		f := NewFixture(db, "mysql")
+		tx, err := db.Begin()
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
+		tx.Exec(c.beforeSQL)
+		err = f.clearTable(tx, c.input)
+		if err != nil {
+			tx.Rollback()
+			if _, ok := err.(*mysql.MySQLError); !ok {
+				t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+			}
+		} else {
+			tx.Commit()
+			checkSelectNotExistIDs(t, db, []int{c.expectNotExistID}, c.input)
+		}
+	}
+}
+
+func TestExecSQLs(t *testing.T) {
+	db := h.TestDB(t)
+	defer db.Close()
+
+	cases := []struct {
+		input          []string
+		expectExistIDs []int
+		checkTable     string
+	}{
+		{
+			[]string{
+				"insert into `person` values ('1', 'foo', 'bar')",
+				"insert into `person` values ('2', 'fuga', 'piyo')",
+			},
+			[]int{1, 2},
+			"person",
+		},
+		{
+			[]string{"insert"},
+			nil,
+			"",
+		},
+	}
+	for i, c := range cases {
+		f := NewFixture(db, "mysql")
+		tx, err := db.Begin()
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
+		err = f.execSQLs(tx, c.input)
+		if err != nil {
+			tx.Rollback()
+			if _, ok := err.(*mysql.MySQLError); !ok {
+				t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+			}
+		} else {
+			tx.Commit()
+			if c.expectExistIDs != nil {
+				checkSelectExistIDs(t, db, c.expectExistIDs, c.checkTable)
+			}
+		}
+	}
+}
+
 func TestLoadSQL(t *testing.T) {
 	db := h.TestDB(t)
 	defer db.Close()
@@ -150,7 +287,7 @@ func TestLoadSQL(t *testing.T) {
 			}
 		}
 		if c.expectExistIDs != nil {
-			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
+			checkSelectExistIDs(t, db, c.expectExistIDs, c.expectTable)
 		}
 	}
 }
@@ -166,7 +303,7 @@ func TestLoad(t *testing.T) {
 		expectExistIDs []int
 	}{
 		{"testdata/test.yml", nil, "person", []int{1, 2}},
-		{"testdata/error.yml", ErrInvalidFixture, "", nil},
+		{"testdata/error.yml", ErrTestMySQL, "", nil},
 		{"testdata/none", ErrFailReadFile, "", nil},
 	}
 	for i, c := range cases {
@@ -182,18 +319,67 @@ func TestLoad(t *testing.T) {
 			}
 		}
 		if c.expectExistIDs != nil {
-			checkSelectIDs(t, db, c.expectExistIDs, c.expectTable)
+			checkSelectExistIDs(t, db, c.expectExistIDs, c.expectTable)
 		}
 	}
 }
 
-func checkSelectIDs(t *testing.T, db *sql.DB, ids []int, table string) {
+func TestLoadWithRollback(t *testing.T) {
+	db := h.TestDB(t)
+	defer db.Close()
+
+	cases := []struct {
+		beforeSQL        string
+		input            string
+		expectExistID    int
+		expectNotExistID int
+		checkTable       string
+	}{
+		{
+			"insert into person values (1, 'foo', 'bar')",
+			"testdata/rollback1.yml", // insert id 2, expect error by clearTable
+			1,
+			2,
+			"person",
+		},
+		{
+			"insert into person values (1, 'foo', 'bar')",
+			"testdata/rollback2.yml", // insert id 2, expect error by execSQLs
+			1,
+			2,
+			"person",
+		},
+	}
+	for i, c := range cases {
+		f := NewFixture(db, "mysql")
+		db.Exec(c.beforeSQL)
+		err := f.Load(c.input)
+		if _, ok := err.(*mysql.MySQLError); !ok {
+			t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
+		}
+		checkSelectExistIDs(t, db, []int{c.expectExistID}, c.checkTable)
+		checkSelectNotExistIDs(t, db, []int{c.expectNotExistID}, c.checkTable)
+	}
+}
+
+func checkSelectExistIDs(t *testing.T, db *sql.DB, ids []int, table string) {
 	for _, id := range ids {
 		row := db.QueryRow(fmt.Sprintf("select id from %s where id=%d", table, id))
 		var a int
 		err := row.Scan(&a)
 		if err != nil {
 			t.Errorf("id%d: want no error, got %v", id, err)
+		}
+	}
+}
+
+func checkSelectNotExistIDs(t *testing.T, db *sql.DB, ids []int, table string) {
+	for _, id := range ids {
+		row := db.QueryRow(fmt.Sprintf("select id from %s where id=%d", table, id))
+		var a int
+		err := row.Scan(&a)
+		if err == nil {
+			t.Errorf("id%d: want no rows in result set, got %v", id, err)
 		}
 	}
 }

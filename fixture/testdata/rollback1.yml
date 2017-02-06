@@ -1,0 +1,5 @@
+table: none_table
+record:
+  - id: 2
+    first_name: foo
+    last_name: bar
