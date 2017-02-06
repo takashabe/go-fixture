@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/takashabe/go-db-fixture/fixture"
+	"github.com/takashabe/go-fixture"
 )
 
 type MySQLDriver struct {
