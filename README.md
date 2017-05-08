@@ -1,12 +1,44 @@
 # go-fixture
 
-## design:
+Management the fixtures of the database for testing.
 
-* fixture write in .yml or .sql
-* setup fixture by choose .yml and target table mapping struct
-  * e.g. `loadFixture("path/to/hoge.yml", &Hoge{})`
+## features
 
-### .yml fixture file format
+* Load database fixture from .yaml or .sql file
+* Before cleanup table(.yaml only)
+* Support databases
+  * MySQL
+  * and more drivers are todo...
+
+## usage
+
+* Import `go-fixture` and drirver `go-fixture/mysql` as like `database/sql` driver
+
+```
+import (
+  "database/sql"
+
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/takashabe/go-fixture"
+  _ "github.com/takashabe/go-fixture/mysql"
+)
+
+func main() {
+  db, err := sql.Open("mysql", "fixture@/db_fixture")
+  if err != nil {
+    panic(err.Error())
+  }
+
+  f := fixture.NewFixture(db, "mysql")
+  if err := f.Load("fixture/setup.yaml"); err != nil {
+    panic(err.Error())
+  }
+}
+```
+
+## fixture file format
+
+#### .yaml
 
 ```
 - table: foo
@@ -19,8 +51,12 @@
       last_name: fuga
 ```
 
-### .sql fixture file format
+#### .sql
+
+* Need to add a semicolon at the end of the line
+* If table cleanup is required it will need to be in the fixture file
 
 ```
-insert into person(id, name) values (1, 'foo')
+DELETE FROM person;
+INSERT INTO person(id, name) VALUES (1, 'foo');
 ```
