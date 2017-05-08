@@ -1,0 +1,8 @@
+table: person
+record:
+  - id: 1
+    first_name: a
+    last_name: b
+  - id: 2
+    first_name: c
+    last_name: d
