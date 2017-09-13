@@ -41,14 +41,14 @@ func main() {
 #### .yaml
 
 ```
-- table: foo
-  records:
-    - id: 1
-      first_name: foo
-      last_name: bar
-    - id: 2
-      first_name: piyo
-      last_name: fuga
+table: foo
+records:
+  - id: 1
+    first_name: foo
+    last_name: bar
+  - id: 2
+    first_name: piyo
+    last_name: fuga
 ```
 
 #### .sql
