@@ -55,6 +55,16 @@ func (d *TestDriver) EscapeValue(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
 
+func (d *TestDriver) ExecSQL(tx *sql.Tx, sql string) error {
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	return err
+}
+
 func TestGetFileData(t *testing.T) {
 	cases := []struct {
 		input      string

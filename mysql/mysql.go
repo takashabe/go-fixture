@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -8,23 +9,42 @@ import (
 	"github.com/takashabe/go-fixture"
 )
 
-type MySQLDriver struct {
-}
+// FixtureDriver is mysql driver
+type FixtureDriver struct{}
 
-func (d *MySQLDriver) EscapeKeyword(keyword string) string {
+// EscapeKeyword define keyword escape
+func (d *FixtureDriver) EscapeKeyword(keyword string) string {
 	return fmt.Sprintf("`%s`", keyword)
 }
 
-func (d *MySQLDriver) EscapeValue(value string) string {
+// EscapeValue define value escape
+func (d *FixtureDriver) EscapeValue(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
 
-func (m *MySQLDriver) TrimComment(sql string) string {
+// TrimComment define comment trimmed
+func (d *FixtureDriver) TrimComment(sql string) string {
 	result := ""
 	for _, line := range strings.Split(sql, "\n") {
 		result += trimLineComment(line)
 	}
 	return trimBlockComment(result)
+}
+
+// ExecSQL exec a sql statement
+func (d *FixtureDriver) ExecSQL(tx *sql.Tx, sql string) error {
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		// non supported prepare statement
+		if strings.HasPrefix(err.Error(), "Error 1295:") {
+			_, err := tx.Exec(sql)
+			return err
+		}
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	return err
 }
 
 func trimLineComment(s string) string {
@@ -44,5 +64,5 @@ func trimBlockComment(s string) string {
 }
 
 func init() {
-	fixture.Register("mysql", &MySQLDriver{})
+	fixture.Register("mysql", &FixtureDriver{})
 }

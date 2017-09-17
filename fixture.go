@@ -25,6 +25,7 @@ type Driver interface {
 	TrimComment(sql string) string
 	EscapeKeyword(keyword string) string
 	EscapeValue(value string) string
+	ExecSQL(tx *sql.Tx, sql string) error
 }
 
 // Fixture supply fixture methods
@@ -128,12 +129,7 @@ func (f *Fixture) clearTable(tx *sql.Tx, tableName string) error {
 
 func (f *Fixture) execSQLs(tx *sql.Tx, sqls []string) error {
 	for _, sql := range sqls {
-		stmt, err := tx.Prepare(sql)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		_, err = stmt.Exec()
+		err := f.driver.ExecSQL(tx, sql)
 		if err != nil {
 			return err
 		}
