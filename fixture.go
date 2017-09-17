@@ -10,21 +10,24 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// error variables
 var (
 	ErrFailRegisterDriver = errors.New("failed to register driver")
 	ErrFailReadFile       = errors.New("failed to read file")
 	ErrInvalidFixture     = errors.New("invalid fixture file format")
-
-	// db driver. register by any driver files
-	drivers = make(map[string]Driver)
 )
 
+// db driver. register by any driver files
+var drivers = make(map[string]Driver)
+
+// Driver is database adapter
 type Driver interface {
 	TrimComment(sql string) string
 	EscapeKeyword(keyword string) string
 	EscapeValue(value string) string
 }
 
+// Fixture supply fixture methods
 // sample:
 //   import _ "github.com/takashabe/go-fixture/mysql"
 //   ...
@@ -34,11 +37,13 @@ type Fixture struct {
 	driver Driver
 }
 
-type FixtureModel struct {
+// QueryModelWithYaml represent fixture yaml file mapper
+type QueryModelWithYaml struct {
 	Table  string              `yaml:"table"`
 	Record []map[string]string `yaml:"record"`
 }
 
+// Register registers driver
 func Register(name string, driver Driver) error {
 	if _, dup := drivers[name]; driver == nil || dup {
 		return ErrFailRegisterDriver
@@ -47,17 +52,18 @@ func Register(name string, driver Driver) error {
 	return nil
 }
 
+// NewFixture returns initialized Fixture
 func NewFixture(db *sql.DB, driverName string) *Fixture {
 	return &Fixture{db: db, driver: drivers[driverName]}
 }
 
-// load .yml script
+// Load load .yml script
 func (f *Fixture) Load(path string) error {
 	data, err := getFileData(path)
 	if err != nil {
 		return err
 	}
-	model := FixtureModel{}
+	model := QueryModelWithYaml{}
 	err = yaml.Unmarshal(data, &model)
 	if err != nil {
 		return errors.Wrapf(ErrInvalidFixture, ": err %v", err)
@@ -87,7 +93,7 @@ func (f *Fixture) Load(path string) error {
 	return nil
 }
 
-// load .sql script
+// LoadSQL load .sql script
 func (f *Fixture) LoadSQL(path string) error {
 	data, err := getFileData(path)
 	if err != nil {
@@ -136,7 +142,7 @@ func (f *Fixture) execSQLs(tx *sql.Tx, sqls []string) error {
 }
 
 // create sqls from .yml
-func (f *Fixture) createInsertSQLs(tx *sql.Tx, model FixtureModel) ([]string, error) {
+func (f *Fixture) createInsertSQLs(tx *sql.Tx, model QueryModelWithYaml) ([]string, error) {
 	if model.Table == "" || len(model.Record) == 0 {
 		return nil, ErrInvalidFixture
 	}

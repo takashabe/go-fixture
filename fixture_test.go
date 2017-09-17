@@ -136,12 +136,12 @@ func TestCreateInsertSQLs(t *testing.T) {
 	defer db.Close()
 
 	cases := []struct {
-		input      FixtureModel
+		input      QueryModelWithYaml
 		expectSQLs []string
 		expectErr  error
 	}{
 		{
-			FixtureModel{
+			QueryModelWithYaml{
 				Table: "person",
 				Record: []map[string]string{
 					{"id": "1", "first_name": "foo", "last_name": "bar"},
@@ -154,7 +154,7 @@ func TestCreateInsertSQLs(t *testing.T) {
 			nil,
 		},
 		{
-			FixtureModel{},
+			QueryModelWithYaml{},
 			[]string{},
 			ErrInvalidFixture,
 		},
