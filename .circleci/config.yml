@@ -32,7 +32,7 @@ jobs:
       - run:
           name: Install dependency
           command: |
-            sudo apt-get update -pp && sudo apt-get install -y mysql-client
+            sudo apt-get update -qq && sudo apt-get install -y mysql-client
             go get -u github.com/golang/dep/cmd/dep
             make deps
 
