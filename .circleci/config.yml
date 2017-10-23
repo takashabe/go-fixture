@@ -11,7 +11,7 @@ jobs:
           MYSQL_USER: db_fixture
           MYSQL_PASSWORD: ''
           MYSQL_DATABASE: db_fixture
-          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_ROOT_HOST: '%'
 
     working_directory: /go/src/github.com/takashabe/go-fixture
