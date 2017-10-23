@@ -32,6 +32,7 @@ jobs:
       - run:
           name: Install dependency
           command: |
+            apt-get install -y mysql-client
             go get -u github.com/golang/dep/cmd/dep
             make deps
 
