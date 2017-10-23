@@ -3,6 +3,7 @@ package fixture
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -25,7 +26,17 @@ var (
 // TODO changeable DB by env
 func (h *Helper) TestDB(t *testing.T) *sql.DB {
 	Register("mysql", &TestDriver{})
-	db, err := sql.Open("mysql", "db_fixture@/db_fixture")
+
+	var (
+		user, pass, host, port string
+	)
+	host = getEnvWithDefault("DB_HOST", "localhost")
+	port = getEnvWithDefault("DB_PORT", "3306")
+	user = getEnvWithDefault("DB_USER", "db_fixture")
+	pass = getEnvWithDefault("DB_PASSWORD", "")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/db_fixture", user, pass, host, port)
+
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatal("failed to open db")
 	}
@@ -33,6 +44,14 @@ func (h *Helper) TestDB(t *testing.T) *sql.DB {
 		h.ClearTable(t, db, v)
 	}
 	return db
+}
+
+func getEnvWithDefault(name, def string) string {
+	env := os.Getenv(name)
+	if len(env) != 0 {
+		return env
+	}
+	return def
 }
 
 func (h *Helper) ClearTable(t *testing.T, db *sql.DB, tableName string) {
