@@ -14,7 +14,7 @@ Management the fixtures of the database for testing.
 
 * Import `go-fixture` and drirver `go-fixture/mysql` as like `database/sql` driver
 
-```
+```go
 import (
   "database/sql"
 
@@ -40,7 +40,7 @@ func main() {
 
 #### .yaml
 
-```
+```yml
 table: foo
 records:
   - id: 1
@@ -56,7 +56,7 @@ records:
 * Need to add a semicolon at the end of the line
 * If table cleanup is required it will need to be in the fixture file
 
-```
+```sql
 DELETE FROM person;
 INSERT INTO person(id, name) VALUES (1, 'foo');
 ```
