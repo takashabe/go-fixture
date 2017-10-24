@@ -23,18 +23,15 @@ var (
 	testTables = []string{"person", "book"}
 )
 
-// TODO changeable DB by env
 func (h *Helper) TestDB(t *testing.T) *sql.DB {
 	Register("mysql", &TestDriver{})
 
-	var (
-		user, pass, host, port string
-	)
-	host = getEnvWithDefault("DB_HOST", "localhost")
-	port = getEnvWithDefault("DB_PORT", "3306")
-	user = getEnvWithDefault("DB_USER", "db_fixture")
-	pass = getEnvWithDefault("DB_PASSWORD", "")
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/db_fixture", user, pass, host, port)
+	name := getEnvWithDefault("DB_NAME", "db_fixture")
+	host := getEnvWithDefault("DB_HOST", "localhost")
+	port := getEnvWithDefault("DB_PORT", "3306")
+	user := getEnvWithDefault("DB_USER", "db_fixture")
+	pass := getEnvWithDefault("DB_PASSWORD", "")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, name)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
