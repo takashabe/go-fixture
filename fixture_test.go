@@ -18,15 +18,9 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-type Helper struct{}
-
-type TestDriver struct{}
-
 var (
 	ErrTestMySQL = errors.New("for test mysql error")
-
-	h          = Helper{}
-	testTables = []string{"person", "book"}
+	testTables   = []string{"person", "book"}
 )
 
 func setup() {
@@ -63,7 +57,7 @@ func connectDB() (*sql.DB, error) {
 	return sql.Open("mysql", dsn)
 }
 
-func (h *Helper) TestDB(t *testing.T) *sql.DB {
+func testDB(t *testing.T) *sql.DB {
 	Register("mysql", &TestDriver{})
 	db, err := connectDB()
 	if err != nil {
@@ -83,13 +77,15 @@ func getEnvWithDefault(name, def string) string {
 	return def
 }
 
-func (h *Helper) ClearTable(t *testing.T, db *sql.DB, tableName string) {
+func clearTable(t *testing.T, db *sql.DB, tableName string) {
 	sql := fmt.Sprintf("truncate table %s", tableName)
 	_, err := db.Exec(sql)
 	if err != nil {
 		t.Fatalf("failed to clear table: %s", tableName)
 	}
 }
+
+type TestDriver struct{}
 
 func (d *TestDriver) TrimComment(sql string) string {
 	return sql
@@ -154,7 +150,7 @@ record:
 }
 
 func TestChooseSQLs(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -190,7 +186,7 @@ func TestChooseSQLs(t *testing.T) {
 }
 
 func TestCreateInsertSQLs(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -234,7 +230,7 @@ func TestCreateInsertSQLs(t *testing.T) {
 }
 
 func TestClearTable(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -274,7 +270,7 @@ func TestClearTable(t *testing.T) {
 }
 
 func TestExecSQLs(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -318,7 +314,7 @@ func TestExecSQLs(t *testing.T) {
 }
 
 func TestLoadSQL(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -351,7 +347,7 @@ func TestLoadSQL(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
@@ -383,7 +379,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadWithRollback(t *testing.T) {
-	db := h.TestDB(t)
+	db := testDB(t)
 	defer db.Close()
 
 	cases := []struct {
