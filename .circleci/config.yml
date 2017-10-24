@@ -5,11 +5,12 @@ jobs:
       - image: circleci/golang:1.9
         environment:
           DB_HOST: 127.0.0.1
+          DB_PASSWORD: foo
       - image: mysql:5.7
         command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_bin --innodb-large-prefix=true --innodb-file-format=Barracuda
         environment:
           MYSQL_USER: db_fixture
-          MYSQL_DATABASE: db_fixture
+          MYSQL_DATABASE: foo
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_ROOT_HOST: '%'
 
@@ -33,7 +34,7 @@ jobs:
           command: |
             sudo apt-get update -qq && sudo apt-get install -y mysql-client
             go get -u github.com/golang/dep/cmd/dep
-            cat testdata/create.sql | mysql -h 127.0.0.1 -udb_fixture db_fixture
+            cat testdata/create.sql | mysql -h 127.0.0.1 -udb_fixture -pfoo db_fixture
             dep ensure
             # make deps
 
