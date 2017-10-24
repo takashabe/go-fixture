@@ -63,8 +63,12 @@ func testDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("failed to connect db: %v", err)
 	}
-	for _, v := range testTables {
-		h.ClearTable(t, db, v)
+	// Clear table data
+	for _, name := range testTables {
+		_, err = db.Exec(fmt.Sprintf("truncate table %s", name))
+		if err != nil {
+			t.Fatalf("failed to clear table: %s", name)
+		}
 	}
 	return db
 }
@@ -75,14 +79,6 @@ func getEnvWithDefault(name, def string) string {
 		return env
 	}
 	return def
-}
-
-func clearTable(t *testing.T, db *sql.DB, tableName string) {
-	sql := fmt.Sprintf("truncate table %s", tableName)
-	_, err := db.Exec(sql)
-	if err != nil {
-		t.Fatalf("failed to clear table: %s", tableName)
-	}
 }
 
 type TestDriver struct{}
