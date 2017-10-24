@@ -3,6 +3,7 @@ package fixture
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -11,6 +12,11 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 )
+
+func TestMain(m *testing.M) {
+	setup()
+	m.Run()
+}
 
 type Helper struct{}
 
@@ -23,9 +29,30 @@ var (
 	testTables = []string{"person", "book"}
 )
 
-func (h *Helper) TestDB(t *testing.T) *sql.DB {
-	Register("mysql", &TestDriver{})
+func setup() {
+	// Generate test tables
+	// NOTE: Expect that MySQL users are already created
+	raw, err := ioutil.ReadFile("testdata/create.sql")
+	if err != nil {
+		panic(err)
+	}
+	db, err := connectDB()
+	if err != nil {
+		panic(err)
+	}
+	data := strings.TrimSpace(string(raw))
+	for _, sql := range strings.Split(data, ";") {
+		if sql == "" {
+			continue
+		}
+		_, err = db.Exec(sql)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
+func connectDB() (*sql.DB, error) {
 	name := getEnvWithDefault("DB_NAME", "db_fixture")
 	host := getEnvWithDefault("DB_HOST", "localhost")
 	port := getEnvWithDefault("DB_PORT", "3306")
@@ -33,9 +60,14 @@ func (h *Helper) TestDB(t *testing.T) *sql.DB {
 	pass := getEnvWithDefault("DB_PASSWORD", "")
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, name)
 
-	db, err := sql.Open("mysql", dsn)
+	return sql.Open("mysql", dsn)
+}
+
+func (h *Helper) TestDB(t *testing.T) *sql.DB {
+	Register("mysql", &TestDriver{})
+	db, err := connectDB()
 	if err != nil {
-		t.Fatal("failed to open db")
+		t.Fatalf("failed to connect db: %v", err)
 	}
 	for _, v := range testTables {
 		h.ClearTable(t, db, v)
