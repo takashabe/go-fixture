@@ -1,5 +1,7 @@
 # go-fixture
 
+[![CircleCI](https://circleci.com/gh/takashabe/go-fixture.svg?style=shield)](https://circleci.com/gh/takashabe/go-fixture)
+
 Management the fixtures of the database for testing.
 
 ## features
