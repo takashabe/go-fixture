@@ -1,6 +1,8 @@
 # go-fixture
 
+[![GoDoc](https://godoc.org/github.com/takashabe/go-fixture?status.svg)](https://godoc.org/github.com/takashabe/go-fixture)
 [![CircleCI](https://circleci.com/gh/takashabe/go-fixture.svg?style=shield)](https://circleci.com/gh/takashabe/go-fixture)
+[![Go Report Card](https://goreportcard.com/badge/github.com/takashabe/go-fixture)](https://goreportcard.com/report/github.com/takashabe/go-fixture)
 
 Management the fixtures of the database for testing.
 
