@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -19,7 +20,10 @@ var (
 )
 
 // db driver. register by any driver files
-var drivers = make(map[string]Driver)
+var (
+	driversMu sync.RWMutex
+	drivers   = make(map[string]Driver)
+)
 
 // Driver is database adapter
 type Driver interface {
@@ -47,6 +51,8 @@ type QueryModelWithYaml struct {
 
 // Register registers driver
 func Register(name string, driver Driver) {
+	driversMu.Lock()
+	defer driversMu.Unlock()
 	if _, dup := drivers[name]; driver == nil || dup {
 		panic(ErrFailRegisterDriver)
 	}
@@ -54,10 +60,10 @@ func Register(name string, driver Driver) {
 }
 
 // NewFixture returns initialized Fixture
-func NewFixture(db *sql.DB, driverName string) *Fixture {
-	return &Fixture{db: db, driver: drivers[driverName]}
 func NewFixture(db *sql.DB, driverName string) (*Fixture, error) {
+	driversMu.RLock()
 	d, ok := drivers[driverName]
+	driversMu.RUnlock()
 	if !ok {
 		return nil, errors.Wrapf(ErrNotFoundDriver, "driver name %s", driverName)
 	}
