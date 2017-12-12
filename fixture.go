@@ -45,12 +45,11 @@ type QueryModelWithYaml struct {
 }
 
 // Register registers driver
-func Register(name string, driver Driver) error {
+func Register(name string, driver Driver) {
 	if _, dup := drivers[name]; driver == nil || dup {
-		return ErrFailRegisterDriver
+		panic(ErrFailRegisterDriver)
 	}
 	drivers[name] = driver
-	return nil
 }
 
 // NewFixture returns initialized Fixture

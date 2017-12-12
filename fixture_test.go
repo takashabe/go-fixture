@@ -44,6 +44,7 @@ func setup() {
 			panic(err)
 		}
 	}
+	Register("mysql", &TestDriver{})
 }
 
 func connectDB() (*sql.DB, error) {
@@ -58,7 +59,6 @@ func connectDB() (*sql.DB, error) {
 }
 
 func prepareDBWithDriver(t *testing.T) *sql.DB {
-	Register("mysql", &TestDriver{})
 	db, err := connectDB()
 	if err != nil {
 		t.Fatalf("failed to connect db: %v", err)
