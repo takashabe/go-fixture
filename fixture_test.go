@@ -105,6 +105,37 @@ func (d *TestDriver) ExecSQL(tx *sql.Tx, sql string) error {
 	return err
 }
 
+func TestNewFixture(t *testing.T) {
+	cases := []struct {
+		input        string
+		expectDriver Driver
+		expectErr    error
+	}{
+		{
+			"mysql",
+			&TestDriver{},
+			nil,
+		},
+		{
+			"none",
+			nil,
+			ErrNotFoundDriver,
+		},
+	}
+	for i, c := range cases {
+		f, err := NewFixture(&sql.DB{}, c.input)
+		if errors.Cause(err) != c.expectErr {
+			t.Errorf("#%d: want %q, got %q", i, c.expectErr, err)
+		}
+		if err != nil {
+			continue
+		}
+		if f.driver != c.expectDriver {
+			t.Errorf("#%d: want %q, got %q", i, c.expectDriver, err)
+		}
+	}
+}
+
 func TestGetFileData(t *testing.T) {
 	cases := []struct {
 		input      string
@@ -166,7 +197,10 @@ func TestChooseSQLs(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Fatalf("#%d: want non error, got %v", i, err)
+		}
 		tx, err := db.Begin()
 		if err != nil {
 			t.Errorf("#%d: want no error, got %v", i, err)
@@ -210,7 +244,10 @@ func TestCreateInsertSQLs(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
 		tx, err := db.Begin()
 		if err != nil {
 			t.Errorf("#%d: want no error, got %v", i, err)
@@ -246,7 +283,10 @@ func TestClearTable(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
 		tx, err := db.Begin()
 		if err != nil {
 			t.Errorf("#%d: want no error, got %v", i, err)
@@ -289,7 +329,10 @@ func TestExecSQLs(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
 		tx, err := db.Begin()
 		if err != nil {
 			t.Errorf("#%d: want no error, got %v", i, err)
@@ -325,8 +368,12 @@ func TestLoadSQL(t *testing.T) {
 		{"testdata/none", ErrFailReadFile, "", nil},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
-		err := f.LoadSQL(c.input)
+		f, err := NewFixture(db, "mysql")
+
+		if err != nil {
+			t.Errorf("#%d: want no error, got %v", i, err)
+		}
+		err = f.LoadSQL(c.input)
 		if err != nil {
 			if c.expectErr == ErrTestMySQL {
 				if _, ok := err.(*mysql.MySQLError); !ok {
@@ -357,8 +404,11 @@ func TestLoad(t *testing.T) {
 		{"testdata/none", ErrFailReadFile, "", nil},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
-		err := f.Load(c.input)
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Fatalf("#%d: want non error, got %v", i, err)
+		}
+		err = f.Load(c.input)
 		if err != nil {
 			if c.expectErr == ErrTestMySQL {
 				if _, ok := err.(*mysql.MySQLError); !ok {
@@ -401,9 +451,12 @@ func TestLoadWithRollback(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		f := NewFixture(db, "mysql")
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Fatalf("#%d: want non error, got %v", i, err)
+		}
 		db.Exec(c.beforeSQL)
-		err := f.Load(c.input)
+		err = f.Load(c.input)
 		if _, ok := err.(*mysql.MySQLError); !ok {
 			t.Errorf("#%d: want mysql.MySQLError, got %v", i, err)
 		}

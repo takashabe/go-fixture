@@ -15,6 +15,7 @@ var (
 	ErrFailRegisterDriver = errors.New("failed to register driver")
 	ErrFailReadFile       = errors.New("failed to read file")
 	ErrInvalidFixture     = errors.New("invalid fixture file format")
+	ErrNotFoundDriver     = errors.New("unknown driver(forgotten import?)")
 )
 
 // db driver. register by any driver files
@@ -55,6 +56,12 @@ func Register(name string, driver Driver) {
 // NewFixture returns initialized Fixture
 func NewFixture(db *sql.DB, driverName string) *Fixture {
 	return &Fixture{db: db, driver: drivers[driverName]}
+func NewFixture(db *sql.DB, driverName string) (*Fixture, error) {
+	d, ok := drivers[driverName]
+	if !ok {
+		return nil, errors.Wrapf(ErrNotFoundDriver, "driver name %s", driverName)
+	}
+	return &Fixture{db: db, driver: d}, nil
 }
 
 // Load load .yml script
