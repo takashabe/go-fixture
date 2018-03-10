@@ -49,9 +49,9 @@ func setup() {
 
 func connectDB() (*sql.DB, error) {
 	name := getEnvWithDefault("DB_NAME", "db_fixture")
-	host := getEnvWithDefault("DB_HOST", "localhost")
+	host := getEnvWithDefault("DB_HOST", "127.0.0.1")
 	port := getEnvWithDefault("DB_PORT", "3306")
-	user := getEnvWithDefault("DB_USER", "db_fixture")
+	user := getEnvWithDefault("DB_USER", "root")
 	pass := getEnvWithDefault("DB_PASSWORD", "")
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, name)
 
