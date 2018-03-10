@@ -12,5 +12,6 @@ func main() {
 	// omit error handling
 	db, _ := sql.Open("mysql", "fixture@/db_fixture")
 	f, _ := fixture.NewFixture(db, "mysql")
-	f.Load("fixture/setup.yaml")
+	f.Load("fixture/setup.yml")
+	f.Load("fixture/setup.sql")
 }

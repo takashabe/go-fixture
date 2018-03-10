@@ -28,21 +28,17 @@ import (
 )
 
 func main() {
-  db, err := sql.Open("mysql", "fixture@/db_fixture")
-  if err != nil {
-    panic(err.Error())
-  }
-
-  f := fixture.NewFixture(db, "mysql")
-  if err := f.Load("fixture/setup.yaml"); err != nil {
-    panic(err.Error())
-  }
+  // omit error handling
+  db, _ := sql.Open("mysql", "fixture@/db_fixture")
+  f, _ := fixture.NewFixture(db, "mysql")
+  f.Load("fixture/setup.yml")
+  f.Load("fixture/setup.sql")
 }
 ```
 
 ## fixture file format
 
-#### .yaml
+#### .yml .yaml
 
 ```yml
 table: foo
