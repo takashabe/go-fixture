@@ -97,11 +97,11 @@ func TestExecSQL(t *testing.T) {
 		},
 		{
 			`create table if not exists book (
-  id int unsigned,
-  name varchar(255) not null,
-  content text not null,
-  primary key(id)
-);`,
+				id int unsigned,
+				name varchar(255) not null,
+				content text not null,
+				primary key(id)
+			);`,
 		},
 	}
 	for i, c := range cases {
