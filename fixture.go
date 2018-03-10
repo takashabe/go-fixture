@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -17,6 +18,7 @@ var (
 	ErrFailReadFile       = errors.New("failed to read file")
 	ErrInvalidFixture     = errors.New("invalid fixture file format")
 	ErrNotFoundDriver     = errors.New("unknown driver(forgotten import?)")
+	ErrUnknownFileExt     = errors.New("unknown file ext")
 )
 
 // db driver. register by any driver files
@@ -76,8 +78,21 @@ func (f *Fixture) Load(path string) error {
 	if err != nil {
 		return err
 	}
+
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".yml", ".yaml":
+		return f.loadYaml(data)
+	case ".sql":
+		return f.loadSQL(data)
+	default:
+		return errors.Wrapf(ErrUnknownFileExt, "ext:%s", ext)
+	}
+}
+
+func (f *Fixture) loadYaml(file []byte) error {
 	model := QueryModelWithYaml{}
-	err = yaml.Unmarshal(data, &model)
+	err := yaml.Unmarshal(file, &model)
 	if err != nil {
 		return errors.Wrapf(ErrInvalidFixture, ": err %v", err)
 	}
@@ -107,17 +122,12 @@ func (f *Fixture) Load(path string) error {
 }
 
 // LoadSQL load .sql script
-func (f *Fixture) LoadSQL(path string) error {
-	data, err := getFileData(path)
-	if err != nil {
-		return err
-	}
-
+func (f *Fixture) loadSQL(file []byte) error {
 	tx, err := f.db.Begin()
 	if err != nil {
 		return err
 	}
-	sqls, err := f.chooseSQLs(tx, string(data))
+	sqls, err := f.chooseSQLs(tx, string(file))
 	if err != nil {
 		return err
 	}

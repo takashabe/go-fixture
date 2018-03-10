@@ -373,7 +373,7 @@ func TestLoadSQL(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d: want no error, got %v", i, err)
 		}
-		err = f.LoadSQL(c.input)
+		err = f.Load(c.input)
 		if err != nil {
 			if c.expectErr == ErrTestMySQL {
 				if _, ok := err.(*mysql.MySQLError); !ok {
@@ -420,6 +420,28 @@ func TestLoad(t *testing.T) {
 		}
 		if c.expectExistIDs != nil {
 			checkSelectExistIDs(t, db, c.expectExistIDs, c.expectTable)
+		}
+	}
+}
+
+func TestLoadWithInvalidFiles(t *testing.T) {
+	db := prepareDBWithDriver(t)
+	defer db.Close()
+
+	cases := []struct {
+		input string
+	}{
+		{"testdata/fixture.ml"},
+		{"testdata/fixture.ym"},
+	}
+	for i, c := range cases {
+		f, err := NewFixture(db, "mysql")
+		if err != nil {
+			t.Fatalf("#%d: want non error, got %v", i, err)
+		}
+		err = f.Load(c.input)
+		if errors.Cause(err) != ErrUnknownFileExt {
+			t.Errorf("#%d: want error %#v, want %#v", i, ErrUnknownFileExt, err)
 		}
 	}
 }
