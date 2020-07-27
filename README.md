@@ -42,7 +42,7 @@ func main() {
 
 ```yml
 table: foo
-records:
+record:
   - id: 1
     first_name: foo
     last_name: bar
